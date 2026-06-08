@@ -16,19 +16,6 @@ type AnalyzeScamInput = {
 
 const allowedRiskLevels = new Set(["low", "medium", "high", "critical"]);
 
-function parseModelJson(text: string) {
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const candidate = fenced?.[1] ?? text;
-  const start = candidate.indexOf("{");
-  const end = candidate.lastIndexOf("}");
-
-  if (start === -1 || end === -1 || end <= start) {
-    throw new Error("Gemini did not return JSON.");
-  }
-
-  return JSON.parse(candidate.slice(start, end + 1)) as Partial<CheckerResult>;
-}
-
 function normalizeCheckerResult(result: Partial<CheckerResult>): CheckerResult {
   const riskLevel = allowedRiskLevels.has(String(result.riskLevel))
     ? (result.riskLevel as CheckerResult["riskLevel"])
@@ -44,7 +31,7 @@ function normalizeCheckerResult(result: Partial<CheckerResult>): CheckerResult {
       : [],
     recommendedAction:
       typeof result.recommendedAction === "string" &&
-      result.recommendedAction.trim()
+        result.recommendedAction.trim()
         ? result.recommendedAction.trim()
         : "Do not send money, PINs, OTPs, or personal information. Verify through an official channel.",
   };
@@ -59,10 +46,21 @@ export async function analyzeScam(input: AnalyzeScamInput): Promise<CheckerResul
 
   const ai = new GoogleGenAI({ apiKey });
   const languageName = input.language === "sw" ? "Swahili" : "English";
-  const parts: Part[] = [
-    {
-      text: `You are Kaa Rada, a Kenya-focused scam safety assistant.
-Analyze the submitted message or screenshot for fraud risk.
+  const parts: Part[] = [];
+
+  // Image first — Gemini handles multimodal better this way
+  if (input.imageBase64) {
+    parts.push({
+      inlineData: {
+        data: input.imageBase64,
+        mimeType: input.mimeType ?? "image/png",
+      },
+    });
+  }
+
+  parts.push({
+    text: `You are Kaa Rada, a Kenya-focused scam safety assistant.
+Analyze the submitted ${input.imageBase64 ? "screenshot and message" : "message"} for fraud risk.
 Return ONLY valid JSON with this exact shape:
 {
   "riskLevel": "low | medium | high | critical",
@@ -73,21 +71,10 @@ Return ONLY valid JSON with this exact shape:
 Use ${languageName} for the recommendedAction.
 Be practical for Kenyan contexts such as M-Pesa, Safaricom, KRA, banks, WhatsApp takeover, fake loans, jobs, crypto, and OTP/PIN theft.
 
-Submitted text:
-${input.rawInput ?? ""}`,
-    },
-  ];
+${input.rawInput ? `Submitted text:\n${input.rawInput}` : ""}`,
+  });
 
-  if (input.imageBase64) {
-    parts.push({
-      inlineData: {
-        data: input.imageBase64,
-        mimeType: input.mimeType ?? "image/png",
-      },
-    });
-  }
-
-  const response = await ai.models.generateContent({
+  const geminiResponse = await ai.models.generateContent({
     model: process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
     contents: [{ role: "user", parts }],
     config: {
@@ -96,5 +83,24 @@ ${input.rawInput ?? ""}`,
     },
   });
 
-  return normalizeCheckerResult(parseModelJson(response.text ?? ""));
+  const raw = geminiResponse.text ?? "";
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<CheckerResult>;
+    return normalizeCheckerResult(parsed);
+  } catch {
+    // Fallback: strip markdown fences if model ignored responseMimeType
+    const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    const candidate = fenced?.[1] ?? raw;
+    const start = candidate.indexOf("{");
+    const end = candidate.lastIndexOf("}");
+
+    if (start === -1 || end === -1 || end <= start) {
+      throw new Error("Gemini did not return valid JSON.");
+    }
+
+    return normalizeCheckerResult(
+      JSON.parse(candidate.slice(start, end + 1)) as Partial<CheckerResult>
+    );
+  }
 }

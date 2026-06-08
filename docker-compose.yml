@@ -1,0 +1,23 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: my-postgres-db
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: kaa_rada
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+  adminer:
+    image: adminer:latest
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"  # map to port 8080 for easy access
+
+volumes:
+  pgdata:

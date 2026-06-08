@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
-import { errorResponse, normalizeSubject } from "@/lib/api";
-import { connectToDatabase } from "@/lib/db";
-import { SearchIndex } from "@/models/SearchIndex";
+import { errorResponse, getErrorMessage, normalizeSubject } from "@/lib/api";
+import prisma from "@/lib/db";
+import { ReportType, ScamCategory } from "@prisma/client";
 
 export const runtime = "nodejs";
+
+const REPORT_TYPES = Object.values(ReportType);
+const SCAM_CATEGORIES = Object.values(ScamCategory);
 
 export async function GET(request: Request) {
   try {
@@ -14,24 +17,97 @@ export async function GET(request: Request) {
       return errorResponse("Search query q is required.");
     }
 
-    await connectToDatabase();
-
     const normalizedQuery = normalizeSubject(query);
-    const escapedQuery = normalizedQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const results = await SearchIndex.find({
-      $or: [
-        { normalizedSubject: normalizedQuery },
-        { normalizedSubject: { $regex: escapedQuery, $options: "i" } },
-        { subject: { $regex: escapedQuery, $options: "i" } },
-      ],
-    })
-      .sort({ totalReports: -1, lastReportedAt: -1 })
-      .limit(20)
-      .lean();
+    const rawQuery = query.trim();
 
-    return NextResponse.json({ results });
+    // Only pass to enum fields if the query is actually a valid enum value
+    const matchedReportType = REPORT_TYPES.find(
+      (t) => t.toLowerCase() === rawQuery.toLowerCase()
+    );
+    const matchedScamCategory = SCAM_CATEGORIES.find(
+      (c) => c.toLowerCase() === rawQuery.toLowerCase()
+    );
+
+    const [indexResults, reportResults] = await prisma.$transaction([
+      prisma.searchIndex.findMany({
+        where: {
+          OR: [
+            { normalizedSubject: { contains: normalizedQuery, mode: "insensitive" } },
+            { subject: { contains: rawQuery, mode: "insensitive" } },
+            // Only include enum filters if query matches a valid enum value
+            ...(matchedScamCategory ? [{ scamCategories: { has: matchedScamCategory } }] : []),
+            ...(matchedReportType ? [{ subjectType: { equals: matchedReportType } }] : []),
+          ],
+        },
+        orderBy: [{ totalReports: "desc" }, { lastReportedAt: "desc" }],
+        take: 20,
+        include: {
+          reports: {
+            select: {
+              id: true,
+              scamCategory: true,
+              description: true,
+              language: true,
+              createdAt: true,
+            },
+            orderBy: { createdAt: "desc" },
+            take: 3,
+          },
+        },
+      }),
+
+      prisma.report.findMany({
+        where: {
+          OR: [
+            { description: { contains: rawQuery, mode: "insensitive" } },
+            { subject: { contains: rawQuery, mode: "insensitive" } },
+            { normalizedSubject: { contains: normalizedQuery, mode: "insensitive" } },
+            ...(matchedScamCategory ? [{ scamCategory: { equals: matchedScamCategory } }] : []),
+            ...(matchedReportType ? [{ reportType: { equals: matchedReportType } }] : []),
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        select: {
+          id: true,
+          reportType: true,
+          subject: true,
+          scamCategory: true,
+          description: true,
+          language: true,
+          status: true,
+          createdAt: true,
+          searchIndex: {
+            select: {
+              id: true,
+              riskScore: true,
+              totalReports: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const indexReportIds = new Set(
+      indexResults.flatMap((i) => i.reports.map((r) => r.id))
+    );
+    const standaloneReports = reportResults.filter(
+      (r) => !indexReportIds.has(r.id)
+    );
+
+    return NextResponse.json({
+      results: {
+        searchIndex: indexResults,
+        reports: standaloneReports,
+      },
+      meta: {
+        searchIndexCount: indexResults.length,
+        reportsCount: standaloneReports.length,
+        query: rawQuery,
+      },
+    });
   } catch (error) {
     console.error(error);
-    return errorResponse("Failed to search reports.", 500);
+    return errorResponse(getErrorMessage(error, "Failed to search reports."), 500);
   }
 }

@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum ReportType {
+  phone
+  business
+  website
+  social_media
+}
+
+enum ScamCategory {
+  fake_loan
+  impersonation
+  phishing
+  job_scam
+  investment
+  other
+}
+
+enum RiskScore {
+  low
+  medium
+  high
+  critical
+}
+
+enum ReportStatus {
+  pending
+  verified
+  rejected
+}
+
+enum Language {
+  en
+  sw
+}
+
+enum FeedSource {
+  community
+  admin
+  ai_detected
+}
+
+enum InputType {
+  text
+  screenshot
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model Report {
+  id                String       @id @default(cuid())
+  reportType        ReportType
+  subject           String
+  normalizedSubject String
+  scamCategory      ScamCategory
+  description       String
+  evidence          String[]
+  language          Language     @default(en)
+  status            ReportStatus @default(pending)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  searchIndex   SearchIndex? @relation(fields: [searchIndexId], references: [id])
+  searchIndexId String?
+
+  @@index([normalizedSubject])
+  @@index([subject])
+}
+
+model SearchIndex {
+  id                String       @id @default(cuid())
+  subject           String
+  normalizedSubject String       @unique
+  subjectType       ReportType
+  totalReports      Int          @default(0)
+  scamCategories    String[]
+  riskScore         RiskScore    @default(low)
+  lastReportedAt    DateTime     @default(now())
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  reports Report[]
+
+  @@index([normalizedSubject])
+}
+
+
+model AICheck {
+  id                String    @id @default(cuid())
+  inputType         InputType
+  rawInput          String    @default("")
+  imageUrl          String?
+  riskLevel         RiskScore
+  scamIndicators    String[]
+  similarPatterns   String[]
+  recommendedAction String
+  language          Language  @default(en)
+  checkedAt         DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
