@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import PageLayout from '@/components/layout/PageLayout';
 
-type FilterType = 'phone' | 'business' | 'website' | 'social';
+type FilterType = 'phone' | 'business' | 'website' | 'social_media';
 
 export default function VerifyPage() {
   const [activeFilter, setActiveFilter] = useState<FilterType>('phone');
