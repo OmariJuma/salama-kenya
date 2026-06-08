@@ -6,21 +6,37 @@ import PageLayout from '@/components/layout/PageLayout';
 export default function AIAnalyzerPage() {
   const [message, setMessage] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [showResults, setShowResults] = useState(false);
+  const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState<string>('');
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (!message.trim()) {
       alert('Please paste a message or upload a screenshot to analyze.');
       return;
     }
 
     setIsAnalyzing(true);
-    setShowResults(false);
+    setResult(null);
+    setError('');
 
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/checker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inputType: 'text', rawInput: message, language: 'en' }),
+      });
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to analyze message');
+      }
+      
+      setResult(data.result);
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during analysis');
+    } finally {
       setIsAnalyzing(false);
-      setShowResults(true);
-    }, 1800);
+    }
   };
 
   return (
@@ -88,42 +104,71 @@ export default function AIAnalyzerPage() {
               </div>
             )}
 
-            {showResults && (
+            {error && (
+              <div className="flex-1 flex flex-col items-center justify-center text-center">
+                <p className="font-label-md text-label-md text-error">{error}</p>
+              </div>
+            )}
+
+            {result && (
               <div className="flex-1 space-y-gutter animate-fadeIn">
                 <div>
                   <span className="font-label-md text-label-md text-on-surface-variant block mb-2">Risk Level</span>
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-error-container text-on-error-container border border-error/20">
+                  <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border ${
+                    result.riskLevel === 'critical' || result.riskLevel === 'high' 
+                      ? 'bg-error-container text-on-error-container border-error/20' 
+                      : result.riskLevel === 'medium'
+                      ? 'bg-tertiary-container text-on-tertiary-container border-tertiary/20'
+                      : 'bg-primary-container text-on-primary-container border-primary/20'
+                  }`}>
                     <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
                       warning
                     </span>
-                    <span className="font-bold">High Risk</span>
+                    <span className="font-bold capitalize">{result.riskLevel} Risk</span>
                   </div>
                 </div>
 
                 <div>
                   <span className="font-label-md text-label-md text-on-surface-variant block mb-stack-sm">Scam Indicators</span>
                   <ul className="space-y-stack-sm">
-                    {['Urgent Language Detected', 'Unverified Shortened Link', 'Impersonation Pattern'].map((indicator, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-on-surface">
-                        <span className="material-symbols-outlined text-secondary text-lg">cancel</span>
-                        <span className="font-body-md text-body-md">{indicator}</span>
-                      </li>
-                    ))}
+                    {result.scamIndicators && result.scamIndicators.length > 0 ? (
+                      result.scamIndicators.map((indicator: string, idx: number) => (
+                        <li key={idx} className="flex items-start gap-2 text-on-surface">
+                          <span className="material-symbols-outlined text-secondary text-lg">cancel</span>
+                          <span className="font-body-md text-body-md">{indicator}</span>
+                        </li>
+                      ))
+                    ) : (
+                      <li className="text-on-surface-variant font-body-md">No specific indicators found.</li>
+                    )}
                   </ul>
                 </div>
+                
+                {result.similarPatterns && result.similarPatterns.length > 0 && (
+                  <div>
+                    <span className="font-label-md text-label-md text-on-surface-variant block mb-stack-sm">Similar Patterns</span>
+                    <div className="flex flex-wrap gap-2">
+                      {result.similarPatterns.map((pattern: string, idx: number) => (
+                        <span key={idx} className="bg-surface-container-high px-3 py-1 rounded-full text-sm text-on-surface-variant">
+                          {pattern}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="mt-auto pt-gutter border-t border-outline-variant">
                   <span className="font-label-md text-label-md text-on-surface-variant block mb-stack-sm">Recommended Action</span>
                   <div className="bg-primary/5 p-stack-md rounded-lg border-l-4 border-primary">
                     <p className="font-body-md text-body-md font-bold text-primary">
-                      Do not click any links or share personal details. Delete this message immediately.
+                      {result.recommendedAction}
                     </p>
                   </div>
                 </div>
               </div>
             )}
 
-            {!isAnalyzing && !showResults && (
+            {!isAnalyzing && !result && !error && (
               <div className="flex-1 flex flex-col items-center justify-center text-center">
                 <p className="font-label-md text-label-md text-on-surface-variant">Enter a message to start analysis</p>
               </div>

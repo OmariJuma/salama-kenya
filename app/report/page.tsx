@@ -10,22 +10,53 @@ export default function ReportPage() {
   const totalSteps = 4;
 
   const [formData, setFormData] = useState({
-    scamType: 'M-Pesa Reversal Fraud',
+    scamType: 'impersonation', // Default enum value
     description: '',
     fraudsterName: '',
     phoneNumber: '',
-    platform: 'WhatsApp',
+    platform: 'phone', // Default enum value
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const updateStep = (step: Step) => {
     setCurrentStep(step);
   };
 
-  const nextStep = () => {
+  const nextStep = async () => {
     if (currentStep < totalSteps) {
       setCurrentStep((currentStep + 1) as Step);
     } else {
-      alert('Thank you for your report! It has been submitted successfully.');
+      setIsSubmitting(true);
+      setSubmitError('');
+      
+      try {
+        const response = await fetch('/api/reports', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reportType: formData.platform,
+            subject: formData.phoneNumber || formData.fraudsterName || 'Unknown',
+            scamCategory: formData.scamType,
+            description: formData.description,
+            language: 'en',
+            evidence: [],
+          }),
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to submit report');
+        }
+        
+        setIsSuccess(true);
+      } catch (err: any) {
+        setSubmitError(err.message || 'An error occurred while submitting');
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -38,15 +69,51 @@ export default function ReportPage() {
   const progressWidth = ((currentStep - 1) / (totalSteps - 1)) * 100;
 
   const scamTypes = [
-    'M-Pesa Reversal Fraud',
-    'Wash-Wash / Gold Scam',
-    'Online Shopping Fraud',
-    'Fake Job Opportunity',
-    'Phishing / Social Media Hack',
-    'Other',
+    { value: 'fake_loan', label: 'Fake Loan' },
+    { value: 'impersonation', label: 'Impersonation / M-Pesa Reversal' },
+    { value: 'phishing', label: 'Phishing / Social Media Hack' },
+    { value: 'job_scam', label: 'Fake Job Opportunity' },
+    { value: 'investment', label: 'Investment / Wash-Wash' },
+    { value: 'other', label: 'Other' },
   ];
 
-  const platforms = ['WhatsApp', 'SMS / Call', 'Facebook', 'Other'];
+  const platforms = [
+    { value: 'phone', label: 'Phone Number / SMS / Call' },
+    { value: 'website', label: 'Website' },
+    { value: 'social_media', label: 'Social Media' },
+    { value: 'business', label: 'Business Name' },
+  ];
+
+  if (isSuccess) {
+    return (
+      <PageLayout>
+        <div className="max-w-4xl mx-auto px-margin-mobile md:px-0 py-stack-lg text-center min-h-[60vh] flex flex-col justify-center items-center">
+          <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center text-primary mb-6">
+            <span className="material-symbols-outlined text-4xl">check_circle</span>
+          </div>
+          <h1 className="font-headline-lg text-headline-lg text-primary mb-4">Report Submitted</h1>
+          <p className="text-on-surface-variant font-body-lg max-w-lg mb-8">
+            Thank you for helping protect the community. Your report has been successfully submitted and will be analyzed to alert others.
+          </p>
+          <div className="flex gap-4">
+            <button 
+              onClick={() => {
+                setFormData({ scamType: 'impersonation', description: '', fraudsterName: '', phoneNumber: '', platform: 'phone' });
+                setCurrentStep(1);
+                setIsSuccess(false);
+              }}
+              className="bg-primary text-on-primary px-6 py-3 rounded-lg font-bold shadow-md hover:opacity-90 transition-opacity"
+            >
+              Report Another Scam
+            </button>
+            <a href="/" className="bg-surface-container text-on-surface px-6 py-3 rounded-lg font-bold hover:bg-surface-variant transition-colors">
+              Return Home
+            </a>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
 
   return (
     <PageLayout>
@@ -107,7 +174,7 @@ export default function ReportPage() {
                     onChange={(e) => setFormData({ ...formData, scamType: e.target.value })}
                   >
                     {scamTypes.map((type) => (
-                      <option key={type}>{type}</option>
+                      <option key={type.value} value={type.value}>{type.label}</option>
                     ))}
                   </select>
                 </div>
@@ -160,8 +227,8 @@ export default function ReportPage() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-stack-sm">
                     {platforms.map((plat) => (
                       <label
-                        key={plat}
-                        className={`flex items-center gap-2 p-3 border-2 rounded-lg cursor-pointer transition-colors ${formData.platform === plat
+                        key={plat.value}
+                        className={`flex items-center gap-2 p-3 border-2 rounded-lg cursor-pointer transition-colors ${formData.platform === plat.value
                             ? 'border-primary bg-primary/10'
                             : 'border-outline-variant hover:bg-surface-container'
                           }`}
@@ -170,10 +237,10 @@ export default function ReportPage() {
                           type="radio"
                           name="platform"
                           className="text-primary focus:ring-primary"
-                          checked={formData.platform === plat}
-                          onChange={() => setFormData({ ...formData, platform: plat })}
+                          checked={formData.platform === plat.value}
+                          onChange={() => setFormData({ ...formData, platform: plat.value })}
                         />
-                        <span className="text-sm font-semibold">{plat}</span>
+                        <span className="text-sm font-semibold">{plat.label}</span>
                       </label>
                     ))}
                   </div>
@@ -217,7 +284,7 @@ export default function ReportPage() {
                       Edit
                     </button>
                   </div>
-                  <p className="font-bold text-on-surface">{formData.scamType}</p>
+                  <p className="font-bold text-on-surface">{scamTypes.find(t => t.value === formData.scamType)?.label || formData.scamType}</p>
                 </div>
                 <div className="p-4 bg-surface border border-outline-variant rounded-lg">
                   <div className="flex justify-between mb-1">
@@ -248,6 +315,12 @@ export default function ReportPage() {
                   By clicking submit, you confirm that the information provided is accurate. We will analyze this data to identify trends and alert other citizens.
                 </p>
               </div>
+
+              {submitError && (
+                <div className="mt-4 p-4 bg-error-container text-on-error-container rounded-lg font-bold">
+                  {submitError}
+                </div>
+              )}
             </div>
           )}
 
@@ -265,11 +338,12 @@ export default function ReportPage() {
               <button
                 onClick={nextStep}
                 className={`px-8 py-3 rounded-lg font-bold card-shadow hover:opacity-90 active:scale-95 transition-all flex items-center gap-2 ${currentStep === totalSteps ? 'bg-secondary text-on-secondary' : 'bg-primary text-on-primary'
-                  }`}
+                  } disabled:opacity-50`}
+                disabled={isSubmitting}
               >
                 {currentStep === totalSteps ? (
                   <>
-                    Submit Report <span className="material-symbols-outlined">check</span>
+                    {isSubmitting ? 'Submitting...' : 'Submit Report'} {!isSubmitting && <span className="material-symbols-outlined">check</span>}
                   </>
                 ) : (
                   <>

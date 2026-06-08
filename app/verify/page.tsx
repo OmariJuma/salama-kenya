@@ -8,59 +8,65 @@ type FilterType = 'phone' | 'business' | 'website' | 'social';
 export default function VerifyPage() {
   const [activeFilter, setActiveFilter] = useState<FilterType>('phone');
   const [searchTerm, setSearchTerm] = useState('');
+  const [results, setResults] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [hasSearched, setHasSearched] = useState(false);
 
   const filters = [
     { id: 'phone', label: 'Phone Number', icon: 'call' },
     { id: 'business', label: 'Business Name', icon: 'store' },
     { id: 'website', label: 'Website', icon: 'language' },
-    { id: 'social', label: 'Social Media', icon: 'share' },
+    { id: 'social_media', label: 'Social Media', icon: 'share' },
   ] as const;
 
-  const results = [
-    {
-      id: 1,
-      title: 'Safaricom Agent Impersonator',
-      identifier: '+254 722 *** 451',
-      risk: 'high',
-      reports: 15,
-      lastReported: '2 hrs ago',
-      icon: 'warning',
-      iconBg: 'error-container',
-      iconColor: 'error',
-    },
-    {
-      id: 2,
-      title: "Fake 'Discount Kenya' FB Shop",
-      identifier: '@discount_kenya_deals',
-      risk: 'medium',
-      reports: 8,
-      lastReported: '1 day ago',
-      icon: 'shopping_basket',
-      iconBg: 'tertiary-fixed',
-      iconColor: 'tertiary',
-    },
-    {
-      id: 3,
-      title: 'Official KRA Portal',
-      identifier: 'itax.kra.go.ke',
-      risk: 'low',
-      reports: 0,
-      lastReported: 'Official Government Domain',
-      icon: 'verified',
-      iconBg: 'primary-container',
-      iconColor: 'on-primary-container',
-      isVerified: true,
-    },
-  ];
+  const handleSearch = async () => {
+    if (!searchTerm.trim()) return;
+    
+    setIsLoading(true);
+    setError('');
+    setHasSearched(true);
+    
+    try {
+      // Map frontend filter 'social' to 'social_media' if needed, though we already changed the ID above
+      const response = await fetch(`/api/search?q=${encodeURIComponent(searchTerm)}`);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to search');
+      }
+      
+      // Merge searchIndex and standalone reports for display
+      const indexResults = (data.results?.searchIndex || []).map((idx: any) => ({
+        id: idx.id,
+        title: idx.subject,
+        identifier: idx.subjectType,
+        risk: idx.riskScore,
+        reports: idx.totalReports,
+        lastReported: new Date(idx.lastReportedAt).toLocaleDateString(),
+        icon: idx.subjectType === 'phone' ? 'call' : idx.subjectType === 'website' ? 'language' : idx.subjectType === 'business' ? 'store' : 'share',
+        iconBg: idx.riskScore === 'high' || idx.riskScore === 'critical' ? 'error-container' : idx.riskScore === 'medium' ? 'tertiary-fixed' : 'primary-container',
+        iconColor: idx.riskScore === 'high' || idx.riskScore === 'critical' ? 'error' : idx.riskScore === 'medium' ? 'tertiary' : 'on-primary-container',
+        isVerified: idx.riskScore === 'low'
+      }));
+      
+      setResults(indexResults);
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during search');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const getRiskStyles = (risk: string) => {
     switch (risk) {
+      case 'critical':
       case 'high':
         return { border: 'border-secondary', bg: 'bg-secondary', text: 'High Risk' };
       case 'medium':
         return { border: 'border-tertiary-container', bg: 'bg-tertiary-container', text: 'Medium Risk' };
       default:
-        return { border: 'border-primary', bg: 'bg-primary', text: 'Verified Official' };
+        return { border: 'border-primary', bg: 'bg-primary', text: 'Low Risk' };
     }
   };
 
@@ -106,9 +112,14 @@ export default function VerifyPage() {
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
-                <button className="absolute right-2 top-1/2 -translate-y-1/2 bg-primary text-on-primary px-6 py-2 rounded-lg font-bold hover:opacity-90">
-                  Verify Now
+                <button 
+                  onClick={handleSearch}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-primary text-on-primary px-6 py-2 rounded-lg font-bold hover:opacity-90 disabled:opacity-50"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Verifying...' : 'Verify Now'}
                 </button>
               </div>
             </div>
@@ -126,7 +137,28 @@ export default function VerifyPage() {
             </div>
 
             <div className="grid gap-stack-md">
-              {results.map((result) => {
+              {isLoading && (
+                <div className="text-center py-8">
+                  <div className="inline-block w-8 h-8 rounded-full border-4 border-primary/20 border-t-primary animate-spin mb-2"></div>
+                  <p className="text-on-surface-variant font-body-md">Searching records...</p>
+                </div>
+              )}
+              
+              {error && (
+                <div className="bg-error-container text-on-error-container p-4 rounded-xl">
+                  {error}
+                </div>
+              )}
+
+              {!isLoading && hasSearched && results.length === 0 && !error && (
+                <div className="text-center py-8 bg-surface rounded-xl border border-outline-variant">
+                  <span className="material-symbols-outlined text-4xl text-outline mb-2">search_off</span>
+                  <p className="font-headline-md text-on-surface">No reports found</p>
+                  <p className="text-on-surface-variant">This entity has not been flagged by the community yet.</p>
+                </div>
+              )}
+
+              {!isLoading && results.map((result) => {
                 const riskStyle = getRiskStyles(result.risk);
                 return (
                   <div
@@ -139,7 +171,7 @@ export default function VerifyPage() {
                       </div>
                       <div>
                         <h3 className="font-headline-md text-[18px] text-on-surface">{result.title}</h3>
-                        <p className="font-label-md text-label-md text-on-surface-variant">{result.identifier}</p>
+                        <p className="font-label-md text-label-md text-on-surface-variant capitalize">{result.identifier.replace('_', ' ')}</p>
                         <div className="flex items-center gap-2 mt-1">
                           <span className={`${riskStyle.bg} text-on-secondary px-2 py-0.5 rounded text-[10px] font-bold uppercase`}>
                             {riskStyle.text}
@@ -151,7 +183,7 @@ export default function VerifyPage() {
                       </div>
                     </div>
                     <div className="flex flex-col items-end">
-                      <span className={`font-headline-md ${result.risk === 'high' ? 'text-secondary' : result.risk === 'medium' ? 'text-tertiary-container' : 'text-primary'}`}>
+                      <span className={`font-headline-md ${result.risk === 'high' || result.risk === 'critical' ? 'text-secondary' : result.risk === 'medium' ? 'text-tertiary-container' : 'text-primary'}`}>
                         {result.reports} Reports
                       </span>
                       <button className="text-primary font-label-md text-label-md underline">

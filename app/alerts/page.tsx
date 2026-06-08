@@ -1,31 +1,39 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import PageLayout from '@/components/layout/PageLayout';
 
 export default function AlertsPage() {
-  const scams = [
-    {
-      id: 1,
-      title: 'New Fake KRA Tax Refund Scam',
-      description: "Fraudsters are sending emails with the KRA logo claiming a tax refund is ready. They ask for bank details and PINs via a malicious link...",
-      risk: 'high',
-      date: 'October 24, 2024',
-    },
-    {
-      id: 2,
-      title: 'WhatsApp Account Takeover Warning',
-      description: "Users report receiving calls from 'WhatsApp Support' asking for a 6-digit verification code. Providing this code allows hackers to take over your account.",
-      risk: 'medium',
-      date: 'October 22, 2024',
-    },
-    {
-      id: 3,
-      title: 'Fraudsters Impersonating Bank Agents',
-      description: "Cold callers are claiming to be from major banks, citing 'suspicious activity' on your account to trick you into revealing mobile banking credentials.",
-      risk: 'high',
-      date: 'October 21, 2024',
-    },
-  ];
+  const [scams, setScams] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchFeed = async () => {
+      try {
+        const response = await fetch('/api/feed');
+        const data = await response.json();
+        
+        if (!response.ok) throw new Error(data.error || 'Failed to load feed');
+        
+        const formattedFeed = (data.feed || []).map((item: any) => ({
+          id: item.id,
+          title: item.subject,
+          description: item.reports?.[0]?.description || 'No description provided.',
+          risk: item.riskScore,
+          date: new Date(item.lastReportedAt).toLocaleDateString(),
+        }));
+        
+        setScams(formattedFeed);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load alerts');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchFeed();
+  }, []);
 
   const trendingScams = [
     { name: 'Fake Job Offers via Telegram', reports: 120 },
@@ -68,19 +76,38 @@ export default function AlertsPage() {
             </div>
 
             <div className="space-y-stack-md">
-              {scams.map((scam) => (
+              {isLoading && (
+                <div className="text-center py-8">
+                  <div className="inline-block w-8 h-8 rounded-full border-4 border-primary/20 border-t-primary animate-spin mb-2"></div>
+                  <p className="text-on-surface-variant font-body-md">Loading feed...</p>
+                </div>
+              )}
+              
+              {error && (
+                <div className="bg-error-container text-on-error-container p-4 rounded-xl">
+                  {error}
+                </div>
+              )}
+
+              {!isLoading && scams.length === 0 && !error && (
+                <div className="text-center py-8 bg-surface rounded-xl border border-outline-variant">
+                  <p className="font-headline-md text-on-surface">No alerts found</p>
+                </div>
+              )}
+
+              {!isLoading && scams.map((scam) => (
                 <div
                   key={scam.id}
                   className={`bg-surface p-6 rounded-xl scam-card-shadow risk-${scam.risk} hover:scale-[1.01] transition-transform cursor-pointer`}
                 >
                   <div className="flex justify-between items-start mb-3">
-                    <span className={`${scam.risk === 'high' ? 'bg-secondary' : 'bg-secondary-fixed'} text-on-secondary px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase`}>
+                    <span className={`${scam.risk === 'high' || scam.risk === 'critical' ? 'bg-secondary' : scam.risk === 'medium' ? 'bg-tertiary-container text-on-tertiary-container' : 'bg-primary text-on-primary'} text-on-secondary px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase`}>
                       {scam.risk} RISK
                     </span>
                     <span className="font-caption text-on-surface-variant">{scam.date}</span>
                   </div>
                   <h3 className="font-headline-md text-headline-md text-on-surface mb-2">{scam.title}</h3>
-                  <p className="text-on-surface-variant mb-4 font-body-md">{scam.description}</p>
+                  <p className="text-on-surface-variant mb-4 font-body-md line-clamp-3">{scam.description}</p>
                   <div className="flex items-center justify-between">
                     <div className="flex space-x-2">
                       <span className="material-symbols-outlined text-primary text-xl">share</span>
@@ -94,7 +121,7 @@ export default function AlertsPage() {
               ))}
             </div>
 
-            <button className="w-full mt-stack-lg border-2 border-primary text-primary py-3 rounded-xl font-bold hover:bg-primary hover:text-on-primary transition-all">
+            <button className="w-full mt-stack-lg border-2 border-primary text-primary py-3 rounded-xl font-bold hover:bg-primary hover:text-on-primary transition-all disabled:opacity-50">
               Load More Scams
             </button>
           </section>
