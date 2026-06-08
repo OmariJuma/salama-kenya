@@ -10,12 +10,11 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { name: 'Dashboard', path: '/', icon: 'dashboard' },
-  { name: 'Search Entity', path: '/verify', icon: 'search' },
-  { name: 'Scam Alerts', path: '/alerts', icon: 'notifications_active' },
-  { name: 'AI Analyzer', path: '/ai-analyzer', icon: 'psychology' },
-  { name: 'Resources', path: '/resources', icon: 'menu_book' },
+  { name: 'Home', path: '/', icon: 'home' },
+  { name: 'Verify', path: '/verify', icon: 'search' },
+  { name: 'Alerts', path: '/alerts', icon: 'notifications' },
   { name: 'Report Scam', path: '/report', icon: 'report' },
+  { name: 'AI Analyzer', path: '/ai-analyzer', icon: 'psychology' },
 ];
 
 export default function SideNavBar() {
@@ -25,7 +24,7 @@ export default function SideNavBar() {
     <aside className="hidden lg:block fixed left-0 top-0 h-full w-64 bg-surface-container-low shadow-md z-40 overflow-y-auto">
       <div className="flex flex-col h-full pt-24 pb-6">
         <div className="mb-stack-lg px-6">
-          <div className="font-headline-md text-headline-md font-bold text-primary">Salama Kenya</div>
+          {/* <div className="font-headline-md text-headline-md font-bold text-primary">Salama Kenya</div> */}
           <div className="font-caption text-on-surface-variant mt-1">Citizen Protection Portal</div>
         </div>
 

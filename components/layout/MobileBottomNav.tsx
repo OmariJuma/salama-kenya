@@ -10,10 +10,11 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { name: 'Home', path: '/', icon: 'dashboard' },
+  { name: 'Home', path: '/', icon: 'home' },
   { name: 'Verify', path: '/verify', icon: 'search' },
   { name: 'Alerts', path: '/alerts', icon: 'notifications' },
-  { name: 'Profile', path: '/profile', icon: 'person' },
+  { name: 'Report Scam', path: '/report', icon: 'report' },
+  { name: 'AI Analyzer', path: '/ai-analyzer', icon: 'psychology' },
 ];
 
 export default function MobileBottomNav() {
@@ -25,9 +26,8 @@ export default function MobileBottomNav() {
         <Link
           key={item.path}
           href={item.path}
-          className={`flex flex-col items-center gap-1 transition-colors ${
-            pathname === item.path ? 'text-primary' : 'text-on-surface-variant hover:text-primary'
-          }`}
+          className={`flex flex-col items-center gap-1 transition-colors ${pathname === item.path ? 'text-primary' : 'text-on-surface-variant hover:text-primary'
+            }`}
         >
           <span className="material-symbols-outlined text-xl">{item.icon}</span>
           <span className="text-[10px] font-bold">{item.name}</span>
