@@ -1,65 +1,115 @@
-import Image from "next/image";
+'use client';
+
+import { useEffect } from 'react';
+import Navigation from '@/components/Navigation';
+import HeroSection from '@/components/HeroSection';
+import AlertTicker from '@/components/AlertTicker';
+import SearchVerifyCard from '@/components/SearchVerifyCard';
+import ReportCard from '@/components/ReportCard';
+import AIAnalyzerCard from '@/components/AIAnalyzerCard';
+import SafetyChecklist from '@/components/SafetyChecklist';
+import EmergencyCTA from '@/components/EmergencyCTA';
+import Footer from '@/components/Footer';
 
 export default function Home() {
+  // useEffect(() => {
+  //   // Intersection observer for action cards animation
+  //   const observer = new IntersectionObserver(
+  //     (entries) => {
+  //       entries.forEach((entry) => {
+  //         if (entry.isIntersecting) {
+  //           entry.target.classList.add('opacity-100', 'translate-y-0');
+  //           entry.target.classList.remove('opacity-0', 'translate-y-10');
+  //         }
+  //       });
+  //     },
+  //     { threshold: 0.1 }
+  //   );
+
+  //   document.querySelectorAll('.action-card-shadow').forEach((el) => {
+  //     el.classList.add('transition-all', 'duration-500', 'opacity-0', 'translate-y-10');
+  //     observer.observe(el);
+  //   });
+
+  //   // Input focus effect
+  //   const searchInput = document.querySelector('input[placeholder*="Enter name"]');
+  //   if (searchInput) {
+  //     const handleFocus = () => {
+  //       searchInput.parentElement?.classList.remove('border-transparent');
+  //       searchInput.parentElement?.classList.add('border-primary', 'bg-white');
+  //     };
+  //     const handleBlur = () => {
+  //       searchInput.parentElement?.classList.add('border-transparent');
+  //       searchInput.parentElement?.classList.remove('border-primary', 'bg-white');
+  //     };
+
+  //     searchInput.addEventListener('focus', handleFocus);
+  //     searchInput.addEventListener('blur', handleBlur);
+
+  //     return () => {
+  //       searchInput.removeEventListener('focus', handleFocus);
+  //       searchInput.removeEventListener('blur', handleBlur);
+  //       observer.disconnect();
+  //     };
+  //   }
+
+  //   return () => observer.disconnect();
+  // }, []);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <>
+      <Navigation />
+      <main className="pt-20">
+        <HeroSection />
+        <AlertTicker />
+
+        {/* Action Grid */}
+        <section className="py-12 md:py-20 bg-surface">
+          <div className="max-w-container-max-width mx-auto px-margin-desktop">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <SearchVerifyCard />
+              <ReportCard />
+              <AIAnalyzerCard />
+            </div>
+          </div>
+        </section>
+
+        {/* Secondary Content */}
+        <section className="py-16 bg-surface-container-low border-t border-outline-variant/30">
+          <div className="max-w-container-max-width mx-auto px-margin-desktop">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              <div>
+                <h2 className="font-headline-lg text-headline-lg mb-6">Your Safety is Our Priority</h2>
+                <p className="font-body-lg text-on-surface-variant mb-8">
+                  Salama Kenya is an independent civic platform dedicated to protecting Kenyans from the
+                  rising wave of digital fraud. We leverage data and community reporting to keep our economy safe.
+                </p>
+                <div className="grid grid-cols-2 gap-6 mb-8">
+                  <div className="bg-white p-4 rounded-xl border border-outline-variant/20">
+                    <p className="text-headline-md font-bold text-primary">85k+</p>
+                    <p className="text-caption font-semibold uppercase text-on-surface-variant">Reports Filed</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl border border-outline-variant/20">
+                    <p className="text-headline-md font-bold text-primary">1.2M</p>
+                    <p className="text-caption font-semibold uppercase text-on-surface-variant">Active Users</p>
+                  </div>
+                </div>
+                <a className="inline-flex items-center gap-2 text-primary font-bold hover:underline" href="#">
+                  Learn how we protect your data
+                  <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                </a>
+              </div>
+              <SafetyChecklist />
+            </div>
+          </div>
+        </section>
+
+        {/* Final Emergency CTA */}
+        <section className="py-20 bg-white">
+          <EmergencyCTA />
+        </section>
       </main>
-    </div>
+      <Footer />
+    </>
   );
 }
